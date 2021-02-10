@@ -1,0 +1,42 @@
+---
+title: "R Basics"
+output: html_notebook
+---
+
+## The Tidyverse
+
+The tidyverse is a weird name for a collection of user-written packages and functions that really are core to why people use R. These packages are nice in that they share a common format for commands. Click the "play" button in the top right of the gray box below to install the tidyverse on your own computer, if it's not already.
+
+```{r}
+# This syntax is common for R --
+# Parameters for a command are included in parentheses.
+install.packages('tidyverse')
+
+# Note that the hash tag indicates a comment.
+```
+
+### Loading Data
+
+There are a few different ways to load data into R. The code below gives some examples. First though, you'll need to set the working directory. If you're doing this in an R project file this is automatic. If not, use the following command:
+
+```{r}
+setwd("C:/Users/andre/Box/LearningR") # Change the path to your location
+```
+
+Now that R knows where all our files are we can get started. By itself, base R is pretty dumb. It doesn't know how to read many file types (outside of a `.csv`). We need to load some of the packages we installed from the tidyverse before we can access `.dta` files or `.xlsx` files. There are two ways to do this.
+
+The first is to type the name of the package before each command. For example, to read a `.dta` file using the haven package, you'd type: `haven::read_dta('path to the file')`. It's kinda a pain to have to type the package name before every command though. Instead we'll load the package into the work space.
+
+```{r}
+library('haven') # Loads the haven packages to read/write .dta files.
+
+titanic <- read_dta('titanic.dta') # Loads the titanic dta file into titanic df.
+head(titanic) # Gives us a look at the first 6 rows of the titanic dataframe.
+
+```
+
+Now let's take a look at our data a bit using functions in the tidyverse package.
+
+```{r}
+summary(titanic)
+```
