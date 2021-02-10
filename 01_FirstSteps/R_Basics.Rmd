@@ -15,7 +15,7 @@ install.packages('tidyverse')
 # Note that the hash tag indicates a comment.
 ```
 
-### Loading Datafff
+### Loading Data
 
 There are a few different ways to load data into R. The code below gives some examples. First though, you'll need to set the working directory. If you're doing this in an R project file this is automatic. If not, use the following command:
 
