@@ -15,7 +15,7 @@ install.packages('tidyverse')
 # Note that the hash tag indicates a comment.
 ```
 
-### Loading Data
+## Loading Data
 
 There are a few different ways to load data into R. The code below gives some examples. First though, you'll need to set the working directory. If you're doing this in an R project file this is automatic. If not, use the following command:
 
@@ -30,13 +30,69 @@ The first is to type the name of the package before each command. For example, t
 ```{r}
 library('haven') # Loads the haven packages to read/write .dta files.
 
-titanic <- read_dta('titanic.dta') # Loads the titanic dta file into titanic df.
-head(titanic) # Gives us a look at the first 6 rows of the titanic dataframe.
+# Here I load a file hosted on github, but you could also just have a file path.
+scholarship <- read_dta("https://raw.github.com/andrewmcamp/LearningR/main/scholarship.dta")
 
 ```
 
-Now let's take a look at our data a bit using functions in the tidyverse package.
+## Simple Descriptive Statistics
+
+Now let's take a look at our data a bit.
 
 ```{r}
-summary(titanic)
+summary(scholarship)
+```
+
+That's nice but I just want one variable. I can specify the SAT score variable in the scholarship dataframe using the `$` sign and then typing the name of the column.
+
+```{r}
+summary(scholarship$sat)
+```
+
+What about several variables?
+
+```{r}
+summary(scholarship %>%
+  select(female, frpl, math08, ela08))
+```
+
+The pipe operator `%>%` is a really useful tool. It can be used to string together several functions/arguments and combine several steps into one.
+
+Those summary stats are pretty ugly though.
+
+```{r}
+# The gtsummary package makes Good Table summaries
+# install.packages('gtsummary')
+
+gtsummary::tbl_summary(scholarship)
+```
+
+We got that error because STATA stores factor variables as numbers with labels. R doesn't like that. The code below replaces the ethnicity column with a factor-ized version of the ethnicity column.
+
+```{r}
+# This converts the ethnicity column to a factor variable using the labels
+# that were included in the .dta file.
+scholarship$ethnicity <- as_factor(scholarship$ethnicity)
+
+tbl_summary(scholarship)
+```
+
+The table can actually report a ton of different stats. Type `??tbl_summary` to see the documentation and how to customize.
+
+## OLS!
+
+Alright. Summary Stats. Cool. How about OLS? Basic OLS is referred to as a linear model `lm` in R. To calculate robust standard errors you need to install the sandwich package if you haven't already. You don't need to load it each time though.
+
+```{r}
+reg1 <- lm(sat ~ female + math08 + ela08, data=scholarship)
+summary(reg1, robust="HC1") #There are different ways to calculate the robust standard errors. 
+#HC1 replicates what Stata does. 
+```
+
+```{r}
+#library(ggplot2)
+library(jtools)
+effect_plot(reg1, pred=math08, interval = TRUE, plot.points=TRUE)
+
+
 ```
