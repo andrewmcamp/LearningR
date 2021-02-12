@@ -23,76 +23,161 @@ There are a few different ways to load data into R. The code below gives some ex
 setwd("C:/Users/andre/Box/LearningR") # Change the path to your location
 ```
 
-Now that R knows where all our files are we can get started. By itself, base R is pretty dumb. It doesn't know how to read many file types (outside of a `.csv`). We need to load some of the packages we installed from the tidyverse before we can access `.dta` files or `.xlsx` files. There are two ways to do this.
+Now that R knows where all our files are we can get started. By itself, base R is pretty dumb. It doesn't know how to read many file types (outside of a `.csv`). We need to load some of the packages we installed from the tidyverse before we can access `.dta` files or `.xlsx` files.
 
-The first is to type the name of the package before each command. For example, to read a `.dta` file using the haven package, you'd type: `haven::read_dta('path to the file')`. It's kinda a pain to have to type the package name before every command though. Instead we'll load the package into the work space.
+### Loading STATA files
+
+There are two ways to load those packages. The first is to type the name of the package before each command. For example, to read a `.dta` file using the haven package, you'd type:
+
+`haven::read_dta('path to the file')`.
+
+It's kinda a pain to have to type the package name before every command though. Instead we'll load the package into the work space.
 
 ```{r}
 library('haven') # Loads the haven packages to read/write .dta files.
 
 # Here I load a file hosted on github, but you could also just have a file path.
+
 scholarship <- read_dta("https://raw.github.com/andrewmcamp/LearningR/main/scholarship.dta")
+
+```
+
+Let's take a quick look at our data. There are a few options:
+
+```{r}
+names(scholarship) # Names just lists the variable names.
+```
+
+```{r}
+head(scholarship) # Head displays the first 6 rows.
+```
+
+That's nice, but how do we get rid of that data set now?
+
+```{r}
+ls() # This command lists things in the workspace.
+
+rm(list=ls()) # So let's feed that list into the remove (rm) function.
+```
+
+### Loading Package Data
+
+Packages also have data. This can be super handy. Some packages, like `tidycensus` allow you to easily pull census data into your project. Other ones, [like the Urban Institute's education data package](https://github.com/UrbanInstitute/education-data-package-r), let you query and pull in data from IPEDS, NCES Common Core of Data, and others.
+
+I'll be using some California school data from the `AER` package for the rest of the examples.
+
+```{r}
+# Install the AER package if you haven't already.
+#install.package('AER')
+
+library(AER)
+# We can now access the data included with the AER package.
+data('CASchools')
 
 ```
 
 ## Simple Descriptive Statistics
 
-Now let's take a look at our data a bit.
+Let's take a closer look at this data
 
 ```{r}
-summary(scholarship)
+summary(CASchools)
 ```
 
 That's nice but I just want one variable. I can specify the SAT score variable in the scholarship dataframe using the `$` sign and then typing the name of the column.
 
 ```{r}
-summary(scholarship$sat)
+summary(CASchools$expenditure) # dataframe$variable
 ```
 
 What about several variables?
 
 ```{r}
-summary(scholarship %>%
-  select(female, frpl, math08, ela08))
+summary(CASchools %>%
+  select(english, read, math))
 ```
 
 The pipe operator `%>%` is a really useful tool. It can be used to string together several functions/arguments and combine several steps into one.
 
-Those summary stats are pretty ugly though.
+Let's store those test scores separately -- they might be interesting on their own.
 
 ```{r}
-# The gtsummary package makes Good Table summaries
-# install.packages('gtsummary')
+CATests <- CASchools %>%
+  select(english, read, math)
 
-gtsummary::tbl_summary(scholarship)
 ```
 
-We got that error because STATA stores factor variables as numbers with labels. R doesn't like that. The code below replaces the ethnicity column with a factor-ized version of the ethnicity column.
+Those summary stats are pretty ugly though. Let's use the `stargazer` package to make it nice.
 
 ```{r}
-# This converts the ethnicity column to a factor variable using the labels
-# that were included in the .dta file.
-scholarship$ethnicity <- as_factor(scholarship$ethnicity)
-
-tbl_summary(scholarship)
+stargazer::stargazer(CASchools, type='text', median=TRUE, digits=2, title="CA School Data Set")
 ```
 
-The table can actually report a ton of different stats. Type `??tbl_summary` to see the documentation and how to customize.
+Notice that this table is missing a few variables? Factor variables (district) and strings are not included in stargazer tables by default (there might be an option).
 
-## OLS!
+Stargazer can also output nice HTML and $\LaTeX$ tables. Look up how in the documentation
 
-Alright. Summary Stats. Cool. How about OLS? Basic OLS is referred to as a linear model `lm` in R. To calculate robust standard errors you need to install the sandwich package if you haven't already. You don't need to load it each time though.
+## Ordinary Least Squares
+
+Alright. Summary Stats. Cool. How about OLS? Basic OLS is referred to as a linear model `lm` in R.
+
+To calculate robust standard errors you need to install the sandwich package if you haven't already. You don't need to load it each time though. R has a few different ways to calculate robust standard errors. I don't know the differences between them, but I know the option `HC1` replicates what STATA does.
+
+Let's regress the school's percent FRL on the school's average math test score.
 
 ```{r}
-reg1 <- lm(sat ~ female + math08 + ela08, data=scholarship)
+#install.packages('sandwich')
+
+reg1 <- lm(math ~ lunch, data=CASchools)
 summary(reg1, robust="HC1") #There are different ways to calculate the robust standard errors. 
 #HC1 replicates what Stata does. 
 ```
 
+What if we wanted to control for student:teacher ratio? That's not included in the dataframe we have...
+
 ```{r}
-#library(ggplot2)
-library(jtools)
-effect_plot(reg1, pred=math08, interval = TRUE, plot.points=TRUE)
+# It's easy to create a new variable.
+CASchools$ratio <- CASchools$students / CASchools$teachers
+
+
+# It's also kind of annoying to keep typing "CASchools$" - Let's do this instead:
+attach(CASchools)
+```
+
+Now we don't need to specify which dataframe our data is coming from.
+
+```{r}
+reg2 <- lm(math ~ lunch + ratio)
+summary(reg2, robust="HC1")
+```
+
+Neat. Is there some way to visualize this easily. You bet there is. The `ggplot2` and `jtools` package are perfect for making some nice plots. Let's also see an easier way to load packages.
+
+```{r}
+pkgs <- c("ggplot2","jtools") # The c operator makes a list of packages
+lapply(pkgs,require,character.only=TRUE) # And lapply applies to the list
+
+
+effect_plot(reg1, pred=lunch, interval = TRUE, plot.points=TRUE)
 
 
 ```
+
+And our second regression
+
+```{r}
+effect_plot(reg2, pred=ratio, interval = TRUE, plot.points=TRUE, colors="blue")
+
+```
+
+## Links to useful stuff
+
+[Richard Blissett & Benjamin Skinner - R and STATA side-by-side: Basic commands and processes](http://rslblissett.com/wp-content/uploads/2016/09/sidebyside_130826.pdf)
+
+[Matthieu Gomez - R for STATA users](https://www.matthieugomez.com/statar/)
+
+[RStudio - Cheat sheets](https://rstudio.com/resources/cheatsheets/#contributed-cheatsheets)
+
+[Roger Peng - Intro to the `dplyr` R package](https://www.youtube.com/watch?v=aywFompr1F4)
+
+[William Sundstrom & Michael Kevane - Guide to R: Data analysis for economics (includes code and data)](https://www.dropbox.com/sh/9pz2xtvd31mi4cl/AAAzG8g0D1YVByu7Mrxztxrga?dl=0)
